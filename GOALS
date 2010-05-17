@@ -1,0 +1,38 @@
+Below are some future goals and features for clide:
+
+- Global config system where definitions and
+  expressions are preinstalled in /etc/clide and
+  you can call in what you need for a specific purpose
+  with a -p option, like for firewall log analysis.
+
+- Column based expressions (like $1, $2 in awk)
+
+- Line number based expressions
+
+- Search range expressions like in sed.
+
+- Unicode support
+
+- Support for 256 foreground and background colors or
+  an arbitrary number of colors.
+
+- Ability to support overlapping patterns without the
+  text itself changing. For example, if you had two
+  expressions like this:
+    /open source/,fg=red
+    /source software/,fg=blue
+
+  Both expressions would match portions of the string 
+  'open source software' and you would end up with open being red
+  and source software being blue according to expression
+  precidence.
+  
+- Abstraction of output for ability to output to other
+  display forms like HTML/CSS.
+
+- Multiple line expressions.
+
+- Inclusion into various distro packaging systems like
+  Debian, Ubuntu, Gentoo, RHEL/CentOS extras repos and
+  others.
+
