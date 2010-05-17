@@ -26,7 +26,6 @@
 
 use Getopt::Long;
 use strict;
-#use Data::Dumper;
 
 # Handle term and int signals so that it resets the colors back to normal.
 # Otherwise it will produce results that are not nice for the user.
@@ -40,29 +39,32 @@ my @definition_files = ();
 my @expression_files = ();
 my $gethelp = '';
 my $warmfuzzy = '';
+my $listcolors = 0;
+my $liststyles = 0;
+my $listdefinitions = 0;
 
 GetOptions(
     "expression|e=s" => \@passed_expressions, # Searches passed on command line.
     "definitionfile|d=s" => \@definition_files,
     "expressionfile|f=s" => \@expression_files,
+    "listcolors" => \$listcolors,
+    "liststyles" => \$liststyles,
+    "listdefinitions" => \$listdefinitions,
     "help|h" => \$gethelp,
     "warmfuzzy|wf=s" => \$warmfuzzy
 );
 
 
-#if (@ARGV) {
-#    print "You passed these files: " . Dumper(@passed_filenames);
-#}
-
 if ($gethelp) {
     &program_help;
-    exit(1);
+    exit(0);
 }
 
 # If this is set, just do this and exit. 
 if ($warmfuzzy) {
     &warmfuzzy($version_number, $warmfuzzy);
 }
+
 
 # Here are some initial thoughts on predefined searches. More in futher versions.
 my %search_definitions = (
@@ -77,7 +79,6 @@ my %search_definitions = (
     'CSTYLECOMMENTS'=>  '/\/*.**\//g', # single line only.
     'HTMLCOMMENTS'  =>  '/<!--.*-->/g', # single line only for now.
     'DATE'         =>  '/\b[0-9]{4}-[0-9]{2}-[0-9]{2}\b/g',
-    'DATE2'        =>  '/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) [\ 123][0-9] [0-9]{2}:[0-9]{2}:[0-9]{2}\b/g',
     'TIME'         =>  '/\b[0-9]{2}:[0-9]{2}:[0-9]{2}\b/g',
     'TWITTERGROUP'  =>  '/#[a-zA-Z0-9]+\b/g',
     'IDENTICAGROUP' =>  '/\![a-zA-Z0-9]+\b/g',
@@ -119,6 +120,33 @@ my %styles = (
     'concealed'  => 8,
 );
 
+if ($listcolors) {
+    print "Foreground/Background colors available: (fg=<color>,bg=<color>)\n";
+    # right now there shouldn't be any difference between fg and bg.
+    foreach my $key (sort keys %fgcolors) {
+        print "\t$key\n";
+    }
+    exit(0);
+}
+
+if ($liststyles) {
+    print "Styles available (some may not be supported in your terminal))\n";
+    foreach my $key (sort keys %styles) {
+        print "\t$key\n";
+    }
+    exit(0);
+}
+
+if ($listdefinitions) {
+    print "Predefined search expressions (usage example: -e DEFNAME,fg=red )\n";
+    printf("\t%-25s\t%-40s\n", "Name", "Pattern");
+    printf("\t%-25s\t%-40s\n", '-'x25, '-'x40);
+    foreach my $key (sort keys %search_definitions) {
+        printf("\t%-25s\t%-40s\n", $key, $search_definitions{$key});
+    }
+    exit(0);
+}
+
 # Need to represent the colors as something besides their normal
 # 3-4 character escape codes because a user's match expression may end
 # up matching the ansi sequence itself and mess it up.
@@ -146,6 +174,11 @@ foreach my $key (keys %bgcolors) {
     $rev_shifted_bgcolors{$shifted_bgcolors{$key}} = $key;
 }
 
+# I was thinking that one way we could handle UTF at least is to use 2 of the characters
+# in upper 8-bit that UTF doesn't touch (like 254 and 255) and then make a 9 character
+# sequence out of those characters so that we have enough combinations to represent
+# even 256 foreground and background colors and the styles.  I guess Konsole supports
+# 24-bit color in terminals. Sheesh.
 
 
 my $style_search_expression = join("|", keys(%styles)); # To help check if an option is valid.
@@ -403,17 +436,19 @@ sub cascade_sequences {
 
 
 sub warmfuzzy {
-    # This is like Zawinski's law in effect
+    # This is like Zawinski's law in effect.
     # Send the developer a warm fuzzy to let him know that the user liked the program.
     my $version = shift;
     my $message = shift;
+
+    my $url = 'http://suso.suso.org/warmfuzzy.cgi';
     # Create a user agent object
-    if (require LWP::UserAgent) {
+    if (eval { require LWP::UserAgent } ) {  # Fail nicely if the user doesn't have this module.
         my $ua = LWP::UserAgent->new;
         $ua->agent("clide/$version ");
 
         # Create a request
-        my $req = HTTP::Request->new(POST => 'http://suso.suso.org/warmfuzzy.cgi');
+        my $req = HTTP::Request->new(POST => $url);
         $req->content_type('application/x-www-form-urlencoded');
         $req->content("appname=clide&version=$version&message=$message");
         my $res = $ua->request($req);
@@ -425,8 +460,16 @@ sub warmfuzzy {
         } else {
             print "Error: ", $res->status_line, "\n";
         }
+    # I'd rather not have this program execute anything external, but just so that
+    # everything seems more seamless, we'll go ahead and try.
+    } elsif (-x '/usr/bin/curl') {
+        print "Using curl to send your message. Thanks.\n";
+        exec('/usr/bin/curl', '-d', 'appname=clide', '-d', "version=$version", '-d', "message=$message", $url);
+    } elsif (-x '/usr/bin/wget') {
+        print "Using wget to send your message. Thanks.\n";
+        exec('/usr/bin/wget', '--quiet', '-O-', '--post-data', "appname=clide&version=$version&message=$message", $url); 
     } else {
-        print "Well, I appreciate the sentiment, but you don't have the Perl LWP module installed so I can't make the request.\n";
+        print "Well, I appreciate the sentiment, but you don't have the Perl LWP module,\ncurl or wget installed so I can't make the request.\n";
         print "Try sending feedback instead of mark\@suso.org directly.\n";
     }
     exit(0);
@@ -443,18 +486,267 @@ sub signal_handler {
 
 sub program_help {
     print <<"EOT";
-clide: An ANSI color filter for ASCII text
+clide - color and style highlighting program for text
+
+Usage:
+  clide [options] [file1] [file2] [...fileN]
+  | clide [options]  (STDIN through pipe)
 
 Options:
   -h, --help  - this output
 
  (Each of these options can be used multiple times)
   -e, --expression <expression>,<attributes>
+      Examples:
+         -e /searchpattern/,fg=red,bold
+         -e HTMLTAG,fg=blue,bg=yellow
+
   -d, --definitionfile <file>
   -f, --expressionfile <file>
 
-  --wf, --warmfuzzy ["message"] = Send the developer a warm fuzzy
-                     to let him know that you like this program.
-EOT
+  --listcolors - Show a list of foreground and background colors
+                 that can be used.
+  --liststyles - Show a list of styles that can be used (not all
+                 of which may work on your display)
+  --listdefinitions - Show a list of predefined search expressions
 
+  --wf, --warmfuzzy "<message>" = Send the developer a short message
+                     to let him know that you like this program.
+
+Please see the clide man page for more detailed information.
+EOT
 }
+
+=pod
+
+=head1 NAME
+
+B<clide> - color and style highlighting program for text
+
+=head1 SYNOPSIS
+
+B<clide> [options] [file1] [file2] [...fileN]
+
+B<| clide> [options] (STDIN through pipe)
+
+B<clide> [options] (STDIN. Use Ctrl-D to finish input)
+
+
+=head1 DESCRIPTION
+
+clide is a program that allows you to colorize and add various display altering attributes to text based on search patterns
+and expressions. Currently the focus is on creating ANSI color and style escape codes for use in terminal displays.
+
+=head1 OPTIONS
+
+  -h, --help - Show some terse help for the program
+
+  -e, --expression <expression>,<attributes>
+      Examples:
+         -e /searchpattern/,fg=red,bold
+         -e HTMLTAG,fg=blue,bg=yellow
+
+  -d, --definitionfile <file>
+
+  -f, --expressionfile <file>
+
+  --listcolors - Show a list of foreground and background colors
+                 that can be used.
+
+  --liststyles - Show a list of styles that can be used (not all
+                 of which may work on your display)
+
+  --listdefinitions - Show a list of predefined search expressions
+
+  --wf, --warmfuzzy "<message>" -
+                Send the developer a short message to let him know that you like this program.
+
+
+=head1 EXAMPLES
+
+=head2 FILE ARGUMENTS
+
+One way to utilize clide is to process the contents of a file or multiple
+files. This is done simply by passing the files as arguments after the
+other options you wish to specify for matching expressions:
+
+ clide -e HTMLTAG,fg=yellow index.html
+
+
+=head2 PIPELINES
+
+Another way to use clide is by passing the output of one program into it.
+You are sending the standard output (STDOUT) of one program to the standard
+input (STDIN) of clide.  Like this command that sends the output of ls
+through clide, which colors lines that are directory entries:
+
+ ls -l | clide -e /^d.*/,fg=blue,bold
+
+
+=head2 SHELL ESCAPING
+
+If you are creating more complex search patterns, you are probably going to need
+to put quotes around the whole argument that is passed to a -e option.  This
+is because your shell will interpret certain characters like (, ), $, &, [, ], etc.
+For example, this command uses an expression that will change the percentage
+display of a filesystem to red if it is 94% or more:
+
+ df -h | clide -e "/(100|9[4-9])%/,fg=red,bold"
+
+But because ( ) is used in most shells as a subshell sequence, you have to put
+quotes around the whole expression so that its not processed by your shell.
+
+
+=head1 EXPRESSIONS
+
+Expressions can be specified on the command line using one or more -e options.
+You can also use the -f option one or more times to specify premade expression
+files.
+
+=head2 PERL REGULAR EXPRESSIONS
+
+clide works by passing the expression that you specify into a PERL matching
+operator. This means that you can pass almost any valid PERL regular expression
+to clide and it should work as expected.
+
+The only limitation is in what flags you can pass to the search. Currently, you
+can only pass a 'i' (case insensitive) and/or a 'g' (global search) flag to the
+search expression. The multiline flag 'm' is not supported.
+
+For more information about perl regular expressions, see the pcre(1) man page.
+
+=head2 REGULAR EXPRESSION SEARCH
+
+The basic way to tell clide what text you want to affect is to use the regular
+expression search operator.  This is passed to the -e option along with
+a command seperated list of attributes to set.
+
+ clide -e /failed/i,fg=yellow,bg=red,bold
+
+The above expression searches for the word failed (using the i option after the
+second / means make the search case insensitive). It will change the word failed
+to have a foreground color of bold yellow (bright) and a background color of red.
+
+
+=head2 PREDEFINED SEARCH PATTERNS
+
+A list of helpful predefined search patterns is included with clide to make
+pattern matching easier for the user. A list of the patterns is available by
+running clide with the --listdefinitions option.  You can also put your own
+definitions in files and use the -f option to include them.
+
+Using a predefined search expression is simply a matter of using its name for
+the first part of the -e argument, like this:
+
+ clide -e HOSTNAME,bold logfile.txt
+
+WARNING: Predefined search patterns MUST use all uppercase names.  In the future
+clide may have other expression functions that start with lower case letters and
+there needs to be a way to differentiate between a pattern definition and an
+operation.
+
+=head1 FILE FORMATS
+
+NOTE: The author would like to encourage you to put your expression and definition
+files in a directory called .clide in your home directory. Future versions of
+clide may make it easier to use these files if you have them located in such a
+named directory.
+
+=head2 EXPRESSION FILE
+
+The expression file is pretty simple, you put each expression one per line
+in exactly the same way that you would pass it to the -e option. expression
+definitions can be used as the expressions themselves are parsed after all
+the predefined expressions are read in.  You can include these files using
+the -f option.
+
+So an expression file called microblogging might look like this:
+
+ HTMLTAG,fg=red,bg=black
+ URL,fg=yellow,bold,underline
+ TWITTERGROUP,fg=blue,bold
+ # Highlight some of my MB account names
+ /@(mkrenz|climagic|suso)/,fg=yellow,bg=blue,bold
+ TWITTERMENTION,fg=cyan
+ IDENTICAGROUP,fg=blue,bold
+
+Then you'd use it like this:
+
+ twidge lsrecent | clide -f ~/.clide/microblogging
+
+Comments can be made using a # character at the beginning of the line.
+
+=head2 DEFINITION FILE
+
+The definition file has a bit more of a format to it. Each line has two columns
+seperated by whitespace. The first column is the name of the definition in all
+uppercase letters. The second column is the search expression starting with a
+forward slash and terminated by a forward slash and one or more pcre flags (i or g)
+
+ # These are IPs I'm watching out for.
+ INTERESTINGIPS /\b(3\.14\.159\.26|206\.97\.64\.[29]|10\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})\b/g
+ # Words I care about.
+ LOGINWORDS /(error|failed|failure|success|successful)/gi
+
+Then just include the file using -d for each file you want to include.
+
+Note that you don't need to escape or backslash as much in the searches
+when you put them in a file as compared with when you specify the pattern
+on the command line. Keep this in mind if you copy and paste your expressions
+into a file.
+
+=head1 BUGS AND LIMITATIONS
+
+Currently clide can only work on 7-bit ASCII text. If it encounters a line
+with upper 8-bit (binary) characters, it will simply print the line with
+out doing any processing on it. If you're really curious as to why, you can
+read the comments in the code or ask the author. A future version of clide
+may not have this limitation.
+
+Most terminal emulators and the console itself have some limitations as to
+what they can display.  Most of them don't support blinking text, only some
+support dark mode, etc. This is not a limitation of clide, it is your
+terminal software.
+
+Because one expression matching will actually alter the line in order to 
+add the escape sequences, matching expressions that are run later may not
+match what the user expects them to match because the string has changed.
+
+clide doesn't support multiline matching at this time.
+
+=head1 SEE ALSO
+
+L<pcre>
+
+=head1 WARMFUZZY
+
+If you like clide, you should let the author know by sending a short message
+using the --warmfuzzy option, like this:
+
+ clide --warmfuzzy "I like clide"
+
+This option makes an HTTP request to a website that will in turn let the 
+author know what you thought.
+
+I included this option because I think that open source projects need an easier
+way for users to give the developers a little reward for their efforts.
+
+=head1 COPYRIGHT
+
+This code is copyright 2010 by Mark Krenz under the terms of the GNU GPL version 3.
+See the file COPYING that comes with clide for more details.
+
+=head1 MORE INFO
+
+You can find more information about clide at its website at
+
+ L<http://suso.suso.org/xulu/clide>
+
+If you'd like to get involved with development in any way, please feel free to contact
+the author.
+
+=head1 AUTHOR
+
+clide was written by Mark Krenz <mark@suso.com>
+
+=cut
