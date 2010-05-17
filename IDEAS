@@ -1,0 +1,32 @@
+
+ Ideas for syntax
+
+ "/\<.*\>/,fg=blue,bg=black"
+
+ Allow for predefined keywords that come with the program.
+
+ EMAIL,fg=blue,bg=black  Match all e-mail addresses
+ URL,fg=red
+ DOMAIN,bg=blue Match things that look like domains/hostnames
+ DEFAULT,fg=blue,bg=black
+
+  All keywords should do a case insentive match unless it doesn't make sense to.
+
+  Other keywords:
+     HTMLTAG
+     FILEPATH
+     WHITESPACE  (spaces, tabs)
+     
+
+ Limited flag support.  So /\<.*\>/ will match first and /\<.*\>/g will match all on line.
+ i - case insensitive matching.
+
+ Order of expressions: Highest priority is given right to left.
+ So if multiple things match, an expression on the right will override one on the left arguments.
+
+ What to do about existing color sequences?  Remove them? Allow them to be replaced, that could be neat.
+
+ Should multiple line expressions be allowed?  Could use perl's /m flag.
+
+ I think by 
+

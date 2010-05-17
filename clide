@@ -1,0 +1,460 @@
+#!/usr/bin/perl -w
+# For Ed, who told me that color is for wussies. s/w/p/;
+
+# clide - A program that takes a list of search expressions tied to color
+#     sequences to use and reformats the output so that strings that matched
+#     are colorized in ANSI colors according to the fg and bg specified.  Not
+#     sure why there isn't already a program out there to do this.  Maybe there
+#     is, just wasn't pushed hard enough.
+#
+# Version 0.9
+
+# Copyright 2010, Mark Krenz <mark@suso.com>
+
+#  This program is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+use Getopt::Long;
+use strict;
+#use Data::Dumper;
+
+# Handle term and int signals so that it resets the colors back to normal.
+# Otherwise it will produce results that are not nice for the user.
+$SIG{TERM}  = 'signal_handler';  # A normal kill command sends this.
+$SIG{INT}   = 'signal_handler';  # Ctrl-C from the keyboard.
+
+my $version_number = 0.9;
+
+my @passed_expressions = (); # //,fg=yellow and so on.
+my @definition_files = ();
+my @expression_files = ();
+my $gethelp = '';
+my $warmfuzzy = '';
+
+GetOptions(
+    "expression|e=s" => \@passed_expressions, # Searches passed on command line.
+    "definitionfile|d=s" => \@definition_files,
+    "expressionfile|f=s" => \@expression_files,
+    "help|h" => \$gethelp,
+    "warmfuzzy|wf=s" => \$warmfuzzy
+);
+
+
+#if (@ARGV) {
+#    print "You passed these files: " . Dumper(@passed_filenames);
+#}
+
+if ($gethelp) {
+    &program_help;
+    exit(1);
+}
+
+# If this is set, just do this and exit. 
+if ($warmfuzzy) {
+    &warmfuzzy($version_number, $warmfuzzy);
+}
+
+# Here are some initial thoughts on predefined searches. More in futher versions.
+my %search_definitions = (
+    'EMAIL'         => '/\b[a-z0-9:,\+_\.-]+\@[a-z0-9\.-]+\b/g',
+    'URL'           =>  '/(http|ftp)s?:\/\/[^\s]+\b/g',
+    'WHITESPACE'    =>  '/\b\s+\b/g',
+    'DOMAIN'        =>  '/\b[a-z0-9-]+\.[a-z0-9]+\b/ig',
+    'HOSTNAME'      =>  '/\b[^\b]+\.?[a-z0-9-]+\.[a-z0-9]+\b/ig',
+    'HTMLTAG'       =>  '/<[^>]+>/g',
+    'FILEPATH'      =>  '/\/[a-zA-Z0-9\.][^\s]*\b/g',
+    'HASHCOMMENTS'  =>  '/\#.*/g',
+    'CSTYLECOMMENTS'=>  '/\/*.**\//g', # single line only.
+    'HTMLCOMMENTS'  =>  '/<!--.*-->/g', # single line only for now.
+    'DATE'         =>  '/\b[0-9]{4}-[0-9]{2}-[0-9]{2}\b/g',
+    'DATE2'        =>  '/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) [\ 123][0-9] [0-9]{2}:[0-9]{2}:[0-9]{2}\b/g',
+    'TIME'         =>  '/\b[0-9]{2}:[0-9]{2}:[0-9]{2}\b/g',
+    'TWITTERGROUP'  =>  '/#[a-zA-Z0-9]+\b/g',
+    'IDENTICAGROUP' =>  '/\![a-zA-Z0-9]+\b/g',
+    'TWITTERMENTION'=>  '/\s\@[a-zA-Z0-9]+\b/g',
+    'IDENTICAMENTION'=>  '/\s\@[a-zA-Z0-9]+\b/g', # same
+
+);
+
+my %fgcolors = (
+    'black'     => 30,
+    'red'       => 31,
+    'green'     => 32,
+    'yellow'    => 33,
+    'blue'      => 34,
+    'magenta'   => 35,
+    'cyan'      => 36,
+    'white'     => 37,
+);
+
+my %bgcolors = (
+    'black'     => 40,
+    'red'       => 41,
+    'green'     => 42,
+    'yellow'    => 43,
+    'blue'      => 44,
+    'magenta'   => 45,
+    'cyan'      => 46,
+    'white'     => 47,
+);
+
+my %styles = (
+    'reset'      => 0,
+    'bold'       => 1,
+    'dark'       => 2,
+    'underline'  => 4,
+    'underscore' => 4,
+    'blink'      => 5,
+    'reverse'    => 7,
+    'concealed'  => 8,
+);
+
+# Need to represent the colors as something besides their normal
+# 3-4 character escape codes because a user's match expression may end
+# up matching the ansi sequence itself and mess it up.
+# Later we can do this in a way that's friendly towards UTF-8 and international encoding.
+# But for now, we can only process 7-bit ASCII only data. We'll skip any input lines
+# that have non 7-bit data.
+my %shifted_styles = ();
+my %rev_shifted_styles = ();
+foreach my $key (keys %styles) {
+    $shifted_styles{$key} = pack("C", $styles{$key}  |  128);
+    $rev_shifted_styles{$shifted_styles{$key}} = $key;
+}
+
+my %shifted_fgcolors = ();
+my %rev_shifted_fgcolors = ();
+foreach my $key (keys %fgcolors) {
+    $shifted_fgcolors{$key} = pack("C", $fgcolors{$key}  |  128);
+    $rev_shifted_fgcolors{$shifted_fgcolors{$key}} = $key;
+}
+
+my %shifted_bgcolors = ();
+my %rev_shifted_bgcolors = ();
+foreach my $key (keys %bgcolors) {
+    $shifted_bgcolors{$key} = pack("C", $bgcolors{$key}  |  128);
+    $rev_shifted_bgcolors{$shifted_bgcolors{$key}} = $key;
+}
+
+
+
+my $style_search_expression = join("|", keys(%styles)); # To help check if an option is valid.
+
+# First, read in the search definitions from any files specified.
+foreach my $definitionfile (@definition_files) {
+    open my $dfh, "<", $definitionfile or warn "Couldn't read definition file: $!\n";
+    while (<$dfh>) {
+        chomp($_);
+        next if ($_ =~ /^#/); # Skip comments.
+        if ($_ =~ m/^([A-Z0-9]+)\s+(\/.*\/[ig]*)$/) {
+            my $def = $1;
+            my $exp = $2;
+            $search_definitions{$1} = $2;
+        } else {
+            warn "Invalid definition '$_' in file $definitionfile on line $.\n";
+        }
+    }
+    close($dfh);
+}
+
+# Instead of having two seperate repeating blocks of code for parsing expression
+# We'll just read the lines of expressions that come from files into an array
+# and then join that with the passed expressions (if any).
+my @all_expressions = ();
+foreach my $expressionfile (@expression_files) {
+    open my $efh, "<", $expressionfile or warn "Couldn't read expression file: $!\n";
+    while (<$efh>) {
+        chomp($_);
+        next if ($_ =~ /^#/); # Skip comments.
+        push(@all_expressions, $_); # No validity checking, code below handles that.
+    }
+    close($efh);    
+}
+
+
+
+push(@all_expressions, @passed_expressions);
+
+# Now read all the expressions into a priority tree that we can use later per each line of input.
+my %searches = ();
+
+my $p = 0;
+foreach my $expression (@all_expressions) {
+
+    my $predefined_search = 0;
+    my $search_expression = "";
+    my $search_flags = "";
+    my $options = "";
+
+    #if ($expression =~ m{^(/[^/]*[^\\]*/[ig]*),(.*)$}) {  # This is what I'd like to use, but it can't match /.*\/.*/ properly.
+    if ($expression =~ m/^\//) { # If expression starts with a /, that means we're doing a custom search.
+        # Because PCRE is very flexible and we want to retain that flexibility, we will validate
+        # The expression by assuming that the options part is fairly simple.
+
+        #$expression =~ m{^(/.*/[ig]*),(.*)$}) { 
+        $expression =~ m{^(/.*/[ig]*),([,a-z=]*)$};
+
+        $searches{$p}{'searchexpression'} = $1;
+        $searches{$p}{'options'} = $2;
+    } elsif ($expression =~ m/^([A-Z]+),(.*)$/) {
+        if ($search_definitions{$1}) {
+            $searches{$p}{'searchexpression'} = $search_definitions{$1};
+            $searches{$p}{'options'} = $2;
+        } else {
+            die("No such search definition: $1\n");
+        }
+    } else {
+        die("Invalid search expression: $expression\n");
+    }
+
+    my @options_array = split(/,/, $searches{$p}{'options'});
+
+    foreach my $option (@options_array) {
+        if ($option =~ m/fg=(.*)/) {
+            $searches{$p}{'fg'} = $1;
+        } elsif ($option =~ m/bg=(.*)/) {
+            $searches{$p}{'bg'} = $1;
+        } elsif ($option =~ m/^($style_search_expression)$/) {
+            $searches{$p}{'styles'}{$option} = 1;
+        } else {
+            die("Invalid expression option: $option\n");
+        }
+    }
+
+    if ($searches{$p}{'searchexpression'} =~ m/\/([a-z]+)$/) {
+        my $passedflags = $1;
+        foreach my $flag (split(//, $passedflags)) {
+            if ($flag !~ m/[ig]/) {  # i and g are the only pcre flags we can accept right now.
+                die("Sorry, search expressions can only accept pcre 'i' and 'g' at this time.\n");
+            }
+        }
+        $searches{$p}{'searchflags'} = $1;
+    }
+
+    $searches{$p}{'searchexpression'} =~ s/^\///;
+    $searches{$p}{'searchexpression'} =~ s/\/[a-z]*$//;
+
+
+    # Build the escapes before running through the data loop to save processing time.
+    my $fgcolor = 0;
+    my $bgcolor = 0;
+
+    if ($searches{$p}{'fg'}) {
+        $fgcolor = $shifted_fgcolors{$searches{$p}{'fg'}};
+    }
+    if ($searches{$p}{'bg'}) {
+        $bgcolor = $shifted_bgcolors{$searches{$p}{'bg'}};
+    }
+    my $style_escape = "";
+    foreach my $style (keys(%{$searches{$p}{'styles'}})) {
+        if ($searches{$p}{'styles'}{$style} == 1) {
+            $style_escape .= $shifted_styles{$style};
+        }
+    }
+
+    my $fgcolor_escape = $fgcolor;
+    my $bgcolor_escape = $bgcolor;
+
+    my $total_escape = "";
+
+    if ($style_escape) { $total_escape .= $style_escape; }
+    if ($bgcolor_escape) { $total_escape .= $bgcolor_escape; }
+    if ($fgcolor_escape) { $total_escape .= $fgcolor_escape; }
+
+    $searches{$p}{'pre_escape_string'} = $total_escape;
+
+    $p++;
+}
+
+
+my $reset_escape = $shifted_styles{'reset'};
+
+
+while (<>) { # Never realized before, but perl's while (<>) is special in that it automatically handles multiple files or stdin in.
+
+    # For now, if there is any upper 8-bit data in the line, just skip the line.
+    # We'll try to make this program deal with that in a future version.
+    if ($_ =~ m/[\x80-\xFF]/) {
+        print $_;
+        next;
+    }
+
+    # Now we go through the output line by line and colorize matches as found.
+
+    # Remember that the way this works, you can't have overlapping escapes because
+    # once an expression has changed the line, other expressions won't match, unless
+    # of course they were setup to match the escape.
+    # We could keep track of the original line.
+
+    foreach my $i (sort { $searches{$a} <=> $searches{$b} } keys %searches) {
+
+        my $search_string = $searches{$i}{'searchexpression'};
+        my $search_flags = "";
+        if ($searches{$i}{'searchflags'}) {
+            $search_flags = $searches{$i}{'searchflags'};
+        }
+
+        my $pre_escape_string = $searches{$i}{'pre_escape_string'};
+
+
+        if ($search_flags =~ m/(gi|ig)/) {
+            # these first expressions will make sure that if the sub expression is in the middle of a color that
+            # it will get preserved after this expression's color replacement. Pretty cool, eh?
+            $_ =~ s/($search_string)/${pre_escape_string}$1${reset_escape}/gi;
+        } elsif ($search_flags =~ m/g/) {
+            $_ =~ s/($search_string)/${pre_escape_string}$1${reset_escape}/g;
+        } elsif ($search_flags =~ m/i/) {
+            $_ =~ s/($search_string)/${pre_escape_string}$1${reset_escape}/i;
+        } else { # Act as if no flags where passed.
+            $_ =~ s/($search_string)/${pre_escape_string}$1${reset_escape}/;
+        }
+
+    }
+
+
+    # Cascading and substituting ANSI sequences is an expensive operation so we'll only do it if something was put in the line.
+    if ($_ =~ m/[\x80-\xFF]/) {
+        $_ = cascade_sequences($_);
+
+        my $line_length = length($_);
+        for (my $i = 0; $i < $line_length; $i++) {
+            my $char = substr($_, $i, 1);
+
+            if ($rev_shifted_styles{$char}) {
+                my $escape_number = $styles{$rev_shifted_styles{$char}};
+                substr($_, $i, 1, "\e[${escape_number}m");
+                $line_length += 3 + length($escape_number) - 1; # We need to increase the line_length value by the number of characters we are adding.
+            }
+
+            if ($rev_shifted_fgcolors{$char}) {
+                my $escape_number = $fgcolors{$rev_shifted_fgcolors{$char}};
+                substr($_, $i, 1, "\e[${escape_number}m");
+                $line_length += 3 + length($escape_number) - 1; # We need to increase the line_length value by the number of characters we are adding.
+            }
+
+            if ($rev_shifted_bgcolors{$char}) {
+                my $escape_number = $bgcolors{$rev_shifted_bgcolors{$char}};
+                substr($_, $i, 1, "\e[${escape_number}m");
+                $line_length += 3 + length($escape_number) - 1; # We need to increase the line_length value by the number of characters we are adding.
+            }
+        }
+    }
+    print $_;
+}
+
+
+
+# This function takes a string and goes through and makes sure that
+# After a color/attribute gets reset, that we return back to the color/attribute
+# that was active before it.
+sub cascade_sequences {
+    my $passed_string = shift;
+    my @sequences_array = ();
+    my $reset_char = chr 0x80;
+    my $my_sequences = "";
+    for (my $i = 0; $i < length($passed_string); $i++) {
+        my $char = substr($passed_string, $i, 1);
+        if ($char =~ m/[\x81-\xFF]/) {
+            push(@sequences_array, $my_sequences);
+            $passed_string = substr($passed_string, 0, $i) . $reset_char . substr($passed_string, $i);
+            $i++;
+            $my_sequences = "";
+            while ($char =~ m/[\x81-\xFF]/) {
+                $my_sequences .= $char;
+                $i++;
+                $char = substr($passed_string, $i, 1);
+            }
+        } elsif ($char =~ m/[\x80]/) {
+            while ($char =~ m/[\x80]/) { # This will condence multiple resets in a row into one, which is probably what people want.
+               $i++;
+               $char = substr($passed_string, $i, 1);
+            }
+            # After the while above, we've moved 1 past the reset, so we need to move back one for the next for loop.
+            $i--;
+            $char = substr($passed_string, $i, 1);
+            if (my $seq = pop(@sequences_array)) {
+                # put the code for inserting the sequence back after the reset here.
+                $passed_string = substr($passed_string, 0, $i + 1) . $seq . substr($passed_string, $i + 1);
+                $my_sequences = $seq;
+                $i += length($seq);
+            } else {
+                $my_sequences = "";
+            }
+        }
+
+    }
+    # From doing this loop, we might end up with a reset before the first character or a sequence after the last, fix that.
+    $passed_string =~ s/^[\x80]+//;
+    $passed_string =~ s/[\x81-\xFF]+$//;
+    return $passed_string;
+}
+
+
+
+
+sub warmfuzzy {
+    # This is like Zawinski's law in effect
+    # Send the developer a warm fuzzy to let him know that the user liked the program.
+    my $version = shift;
+    my $message = shift;
+    # Create a user agent object
+    if (require LWP::UserAgent) {
+        my $ua = LWP::UserAgent->new;
+        $ua->agent("clide/$version ");
+
+        # Create a request
+        my $req = HTTP::Request->new(POST => 'http://suso.suso.org/warmfuzzy.cgi');
+        $req->content_type('application/x-www-form-urlencoded');
+        $req->content("appname=clide&version=$version&message=$message");
+        my $res = $ua->request($req);
+
+        # Check the outcome of the response
+        if ($res->is_success) {
+#            print "results of request: ", $res->content;
+            print "Thanks. I wanted to have this option because I think Open Source developers\nneed more feedback from users and encouragement.\n";
+        } else {
+            print "Error: ", $res->status_line, "\n";
+        }
+    } else {
+        print "Well, I appreciate the sentiment, but you don't have the Perl LWP module installed so I can't make the request.\n";
+        print "Try sending feedback instead of mark\@suso.org directly.\n";
+    }
+    exit(0);
+}
+
+
+
+
+sub signal_handler {
+    print "\e[0m\n";  # Make sure we reset things before exiting out so the user doesn't have to reset manually.
+    exit(1);
+}
+
+
+sub program_help {
+    print <<"EOT";
+clide: An ANSI color filter for ASCII text
+
+Options:
+  -h, --help  - this output
+
+ (Each of these options can be used multiple times)
+  -e, --expression <expression>,<attributes>
+  -d, --definitionfile <file>
+  -f, --expressionfile <file>
+
+  --wf, --warmfuzzy ["message"] = Send the developer a warm fuzzy
+                     to let him know that you like this program.
+EOT
+
+}
