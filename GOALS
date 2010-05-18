@@ -1,24 +1,31 @@
-Below are some future goals and features for clide:
+Below are some future goals and features for clide. If you are 
+interested in participating in the project, you should check this
+list. I've put difficulty ratings next to each item so that you 
+can judge whether you'd be able to help with that item.
 
-- Global config system where definitions and
+- Provide more examples for usage and new search        [EASY]
+  expression definitions.
+
+- Global config system where definitions and            [EASY]
   expressions are preinstalled in /etc/clide and
   you can call in what you need for a specific purpose
   with a -p option, like for firewall log analysis.
 
-- Column based expressions (like $1, $2 in awk)
+- Column based expressions (like $1, $2 in awk)         [EASY]
 
-- Line number based expressions
+- Line number based expressions                         [EASY]
 
-- Search range expressions like in sed.
+- Search range expressions like in sed.                 [EASY to MODERATE]
 
-- Unicode support
+- Unicode support                                       [MODERATE]
 
-- Support for 256 foreground and background colors or
+- Support for 256 foreground and background colors or   [MODERATE]
   an arbitrary number of colors.
 
-- Try to make clide faster.
+- Abstraction of output for ability to output to other  [MODERATE]
+  display forms like HTML/CSS.
 
-- Ability to support overlapping patterns without the
+- Ability to support overlapping patterns without the   [MODERATE]
   text itself changing. For example, if you had two
   expressions like this:
     /open source/,fg=red
@@ -28,13 +35,12 @@ Below are some future goals and features for clide:
   'open source software' and you would end up with open being red
   and source software being blue according to expression
   precidence.
-  
-- Abstraction of output for ability to output to other
-  display forms like HTML/CSS.
 
-- Multiple line expressions.
+- Try to make clide faster.                             [MODERATE to HARD]
 
-- Inclusion into various distro packaging systems like
+- Support for 'm' flag in pcre expressions.             [MODERATE to HARD]
+
+- Inclusion into various distro packaging systems like  [NOT IMPOSSIBLE]
   Debian, Ubuntu, Gentoo, RHEL/CentOS extras repos and
   others.
 
