@@ -42,6 +42,7 @@ my $warmfuzzy = '';
 my $listcolors = 0;
 my $liststyles = 0;
 my $listdefinitions = 0;
+my $reverse_precedence = 0;
 
 GetOptions(
     "expression|e=s" => \@passed_expressions, # Searches passed on command line.
@@ -51,6 +52,7 @@ GetOptions(
     "liststyles" => \$liststyles,
     "listdefinitions" => \$listdefinitions,
     "help|h" => \$gethelp,
+    "reverseprecedence|r" => \$reverse_precedence,
     "warmfuzzy|wf=s" => \$warmfuzzy
 );
 
@@ -329,7 +331,14 @@ while (<>) { # Never realized before, but perl's while (<>) is special in that i
     # of course they were setup to match the escape.
     # We could keep track of the original line.
 
-    foreach my $i (sort { $searches{$a} <=> $searches{$b} } keys %searches) {
+    my @searchkeys = ();
+    if ($reverse_precedence) {
+        @searchkeys = sort { $searches{$a} <=> $searches{$b} } keys %searches;
+    } else {
+        @searchkeys = sort { $searches{$b} <=> $searches{$a} } keys %searches;
+    }
+
+    foreach my $i (@searchkeys) {
 
         my $search_string = $searches{$i}{'searchexpression'};
         my $search_flags = "";
@@ -510,6 +519,9 @@ Options:
                  of which may work on your display)
   --listdefinitions - Show a list of predefined search expressions
 
+  --reverseprecedence, -r - Reverse the precedence order in which
+                 expressions are run through.
+
   --wf, --warmfuzzy "<message>" = Send the developer a short message
                      to let him know that you like this program.
 
@@ -557,6 +569,9 @@ and expressions. Currently the focus is on creating ANSI color and style escape 
                  of which may work on your display)
 
   --listdefinitions - Show a list of predefined search expressions
+
+  --reverseprecedence, -r - Reverse the precedence order in which
+                 expressions are run through.
 
   --wf, --warmfuzzy "<message>" -
                 Send the developer a short message to let him know that you like this program.
@@ -711,6 +726,7 @@ terminal software.
 Because one expression matching will actually alter the line in order to 
 add the escape sequences, matching expressions that are run later may not
 match what the user expects them to match because the string has changed.
+This is probably going to be fixed in a future release.
 
 clide doesn't support multiline matching at this time.
 

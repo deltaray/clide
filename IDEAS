@@ -28,5 +28,10 @@
 
  Should multiple line expressions be allowed?  Could use perl's /m flag.
 
- I think by 
 
+
+-- 
+Idea for doing color substitutions that would solve some issues.
+ Instead of directly altering the line, we'd build a data structure
+that would keep track of what colors are meant to be inserted at a
+position in the string.

@@ -32,9 +32,10 @@ RPMDIR	= $(shell rpm --showrc | grep " _topdir" | \
 	$$dir = $$1; $$dir =~ s|%{_usrsrc}|/usr/src|; print "$$1\n";')
 
 # Modify these as nessecary
+DESTDIR = /
 PERL	= /usr/bin/perl
-BINDIR	= /usr/bin
-TOPDIR	= $(ROOT)/usr
+BINDIR	= $(DESTDIR)usr/bin
+TOPDIR	= $(DESTDIR)usr
 MANDIR	= $(TOPDIR)/share/man/man1
 DOCDIR	= $(TOPDIR)/share/doc/$(DIST)
 BINDIR	= $(TOPDIR)/bin
