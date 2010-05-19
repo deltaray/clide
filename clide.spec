@@ -1,10 +1,13 @@
+
+%global clideversion 0.9
+
 Summary: color and style highlighting program for text
 Name: clide
-Version: @VERSION@
+Version: %{clideversion}
 Release: 1
 Copyright: GPL
 Group: Utilities
-Source: clide-@VERSION@.tar.gz
+Source: clide-%{clideversion}.tar.gz
 BuildArch: noarch
 BuildRoot: /var/tmp/clide-build-@VERSION@
 Packager: Mark Krenz <mark@suso.com>
@@ -32,5 +35,5 @@ make ROOT="$RPM_BUILD_ROOT" rpminstall
 
 
 %changelog
-* Tue May 18 2010 Mark Krenz <mark@suso.com>
+* Tue May 19 2010 Mark Krenz <mark@suso.com>
 - 0.9 release

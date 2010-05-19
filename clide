@@ -712,6 +712,11 @@ into a file.
 
 =head1 BUGS AND LIMITATIONS
 
+Because one expression matching will actually alter the line in order to 
+add the escape sequences, matching expressions that are run later may not
+match what the user expects them to match because the string has changed.
+This is going to be fixed in a future release.
+
 Currently clide can only work on 7-bit ASCII text. If it encounters a line
 with upper 8-bit (binary) characters, it will simply print the line with
 out doing any processing on it. If you're really curious as to why, you can
@@ -722,11 +727,6 @@ Most terminal emulators and the console itself have some limitations as to
 what they can display.  Most of them don't support blinking text, only some
 support dark mode, etc. This is not a limitation of clide, it is your
 terminal software.
-
-Because one expression matching will actually alter the line in order to 
-add the escape sequences, matching expressions that are run later may not
-match what the user expects them to match because the string has changed.
-This is probably going to be fixed in a future release.
 
 clide doesn't support multiline matching at this time.
 

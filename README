@@ -4,6 +4,19 @@ clide is a program for color formating text in files for display mostly in
 terminals using ANSI escape sequences.
 
 
+=== Installation ===
+
+To install clide, simply run
+
+  make
+  make install (as root)
+
+There is also an rpm spec build file included so that you can make
+your own RPM if you want, or you can download the premade RPM
+from the clide website at http://suso.suso.org/xulu/clide
+
+=== Usage ===
+
 You can use it in a command pipeline or by running it against a file or
 multiple files that are passed as arguments. In order to colorize or
 add attributes to the text like bold or underline, you need to do one
@@ -32,5 +45,9 @@ You could use that expression file like this:
   
  ls -l | clide -f ~/.clide/lsfilter.conf
 
+Its strongly recommended that you read the man page.  If you didn't
+install clide yet, then you can view the man page by running
+
+  perldoc /path/to/clide
 
 

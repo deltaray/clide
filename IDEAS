@@ -34,4 +34,19 @@
 Idea for doing color substitutions that would solve some issues.
  Instead of directly altering the line, we'd build a data structure
 that would keep track of what colors are meant to be inserted at a
-position in the string.
+position in the string.  Actually, what would probably work well
+is to use an array the with the same number of elements as the length
+of the string and then replace all the elements in the slice of the
+array that matches with indexes of the color escape codes in the pallette
+and style. If an overlapping expression matches, then it would just
+replace the elements it needs to.  Then when all replacements are
+done, a function goes through and determines the start and end of 
+various combinations of atttributes so that we're not starting and
+stopping a sequence for each character.
+
+Doing it this way would solve the overlapping problem and the 8-bit
+character problem and the 256+ color problem.  It will also be easier
+to work with because we won't have to work with upper 8-bit characters.
+
+
+
