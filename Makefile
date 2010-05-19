@@ -32,7 +32,8 @@ RPMDIR	= $(shell rpm --showrc | grep " _topdir" | \
 	$$dir = $$1; $$dir =~ s|%{_usrsrc}|/usr/src|; print "$$1\n";')
 
 # Modify these as nessecary
-DESTDIR = /
+ROOT    = /
+DESTDIR = $(ROOT)
 PERL	= /usr/bin/perl
 BINDIR	= $(DESTDIR)usr/bin
 TOPDIR	= $(DESTDIR)usr
