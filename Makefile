@@ -131,7 +131,5 @@ do-rpm: $(TARFILE) $(SPECFILE)
 	rpmbuild -ba $(RPMDIR)/SPECS/$(SPECFILE)
 
 $(SPECFILE): $(SPECFILE).in VERSION
-	perl -pe 's[\@(\S+)\@] \
-		[open F, $$1 or die; $$x = join "", <F>; chomp $$x; $$x]ge' \
-			< $< > $@
+	perl -pe 's[\@(\S+)\@] [open F, $$1 or die; $$x = join "", <F>; chomp $$x; $$x]ge' < $< > $@
 

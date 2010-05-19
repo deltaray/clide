@@ -1,15 +1,15 @@
 
-%global clideversion 0.9
+%global clideversion @VERSION@
 
 Summary: color and style highlighting program for text
 Name: clide
 Version: %{clideversion}
 Release: 1
-Copyright: GPL
+License: GPL
 Group: Utilities
 Source: clide-%{clideversion}.tar.gz
 BuildArch: noarch
-BuildRoot: /var/tmp/clide-build-@VERSION@
+BuildRoot: /var/tmp/clide-build-%{clideversion}
 Packager: Mark Krenz <mark@suso.com>
 Vendor: suso.com
 %description
