@@ -394,6 +394,8 @@ while (<>) { # Never realized before, but perl's while (<>) is special in that i
     print $_;
 }
 
+# As a last measure, printout out a reset escape code just in case something didn't work out above.
+print "\e[0m";
 
 
 # This function takes a string and goes through and makes sure that
