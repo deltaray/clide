@@ -37,6 +37,8 @@ my $version_number = 0.9;
 my @passed_expressions = (); # //,fg=yellow and so on.
 my @definition_files = ();
 my @expression_files = ();
+my @general_highlights = ();
+my $highlight_attributes = '';
 my $gethelp = '';
 my $warmfuzzy = '';
 my $listcolors = 0;
@@ -48,6 +50,8 @@ GetOptions(
     "expression|e=s" => \@passed_expressions, # Searches passed on command line.
     "definitionfile|d=s" => \@definition_files,
     "expressionfile|f=s" => \@expression_files,
+    "highlight|hl=s" => \@general_highlights,
+    "highlightattributes|ha=s" => \$highlight_attributes,
     "listcolors" => \$listcolors,
     "liststyles" => \$liststyles,
     "listdefinitions" => \$listdefinitions,
@@ -216,9 +220,25 @@ foreach my $expressionfile (@expression_files) {
     close($efh);    
 }
 
+my $highlights_expression = "";
+# Now make the expression for the general highlights if there are any.
+if (($#general_highlights + 1) > 0) {
+    unless ($highlight_attributes) {
+        # This is a default that will be familiar to most people.
+        $highlight_attributes = "bold,bg=yellow";
+    }
 
+    my $all_highlights_string = join(",", @general_highlights);
+    # The --highlights option will take strings literally, so we need to escape any character
+    # that would have meaning in PCRE.
+    $all_highlights_string =~ s/([\$\^\*\(\)\+\|\[\]\.\?])/\\$1/g;
+    $all_highlights_string =~ s/,/|/g;
+    $highlights_expression = "/($all_highlights_string)/gi,$highlight_attributes";
+    push(@all_expressions, @passed_expressions, $highlights_expression);
+} else {
+    push(@all_expressions, @passed_expressions);
+}
 
-push(@all_expressions, @passed_expressions);
 
 # Now read all the expressions into a priority tree that we can use later per each line of input.
 my %searches = ();
@@ -515,6 +535,15 @@ Options:
   -d, --definitionfile <file>
   -f, --expressionfile <file>
 
+  --highlight, --hl <word1>[,word2,word3,...]
+         Quickly highlight the words specified by the comma seperated
+         string you provide.
+
+  --highlightattributes, --ha <attribute1>[,attribute2,attribute3,...]
+          The default attributes used by the highlight option.
+          This option uses the same comma seperate values taht
+          can be defined in an normal expression.
+
   --listcolors - Show a list of foreground and background colors
                  that can be used.
   --liststyles - Show a list of styles that can be used (not all
@@ -563,6 +592,14 @@ and expressions. Currently the focus is on creating ANSI color and style escape 
   -d, --definitionfile <file>
 
   -f, --expressionfile <file>
+
+  --highlight, --hl <word1>[,word2,word3,...] - Quickly highlight
+     the words given in the comma seperated list of words.
+
+  --highlightattributes, --ha <attribute1>[,attribute2,attribute3,...]
+          The default attributes used by the highlight option.
+          This option uses the same comma seperate values taht
+          can be defined in an normal expression.
 
   --listcolors - Show a list of foreground and background colors
                  that can be used.
@@ -619,6 +656,23 @@ quotes around the whole expression so that its not processed by your shell.
 Expressions can be specified on the command line using one or more -e options.
 You can also use the -f option one or more times to specify premade expression
 files.
+
+=head2 QUICK HIGHLIGHTING
+
+If you're in a hurry and don't want to come up with an expression for matching
+words or characters that you'd like to highlight, you can use the --highlight
+option along with a comma seperated list of values you want to match. Like
+this:
+
+  clide --highlight car,truck,boat insurance-readme.txt
+
+By default clide will highlight these words in yellow.  you can override
+this with the --highlightattributes option, specifying what you want
+in the same way you would pass attribute arguments in a -e argument.
+
+You can use the --highlight option in combination with -e of -f options,
+but the expressions will be applied after the expressions specified with
+-e or -f.
 
 =head2 PERL REGULAR EXPRESSIONS
 
