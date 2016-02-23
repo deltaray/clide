@@ -1,10 +1,10 @@
-clide - version 0.9
+## clide - version 0.9
 
 clide is a program for color formating text in files for display mostly in
 terminals using ANSI escape sequences.
 
 
-=== Installation ===
+# Installation
 
 To install clide, simply run
 
@@ -15,7 +15,7 @@ There is also an rpm spec build file included so that you can make
 your own RPM if you want, or you can download the premade RPM
 from the clide website at http://suso.suso.org/xulu/clide
 
-=== Usage ===
+# Usage
 
 You can use it in a command pipeline or by running it against a file or
 multiple files that are passed as arguments. In order to colorize or
@@ -32,6 +32,7 @@ what is passed to the -e option.  To specify an expression file, use
 the -f option.  For example, if you had a expression config file
 called lsfilter.conf with the following contents:
 
+```
 # This is a comment
 # Make directory entries show in blue
 /^d.*/,fg=blue,bold
@@ -39,6 +40,7 @@ called lsfilter.conf with the following contents:
 /^.rw.rw.rw./,fg=yellow,bold,blink 
 # Show files with a .conf or .cnf at the ne of their name in magenta
 /\b.*\.co?nf$/,fg=magenta
+```
 
 
 You could use that expression file like this:
