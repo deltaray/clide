@@ -101,7 +101,7 @@ clean:
 	rm -f $(PROJECT).spec
 	rm -f $(TARFILE)
 	for file in $(UTILS) ; do \
-	    rm -f $$file.1 ; done
+	    rm -f $$file.1.gz ; done
 	for file in $(UTILS) ; do \
 		cat $$file | sed 's|^#!$(PERL)|#!/usr/bin/perl|' > $$file.out ; \
 		mv $$file.out $$file ; chmod a+x $$file ; done
