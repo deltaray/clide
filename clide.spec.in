@@ -28,7 +28,7 @@ make ROOT="$RPM_BUILD_ROOT" rpminstall
 
 %files
 %attr(0755 root root) %{_bindir}/clide
-%doc %attr(- root root) CHANGELOG COPYING GOALS IDEAS LICENSE README WARNING
+%doc %attr(- root root) CHANGELOG COPYING GOALS IDEAS LICENSE README.md WARNING
 %doc %attr(- root root) tests/
 %{_mandir}/man1/clide.1.gz
 

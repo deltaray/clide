@@ -22,7 +22,7 @@ PROJECT	= clide
 DIST	= $(PROJECT)-$(VERSION)
 FILES	= $(shell cat MANIFEST)
 UTILS	= clide
-DOCS	= CHANGELOG COPYING LICENSE MANIFEST README GOALS WARNING
+DOCS	= CHANGELOG COPYING LICENSE MANIFEST README.md GOALS WARNING
 TESTS	= alphabet strings
 # rpm --showrc is gettin to be hard to parse anymore.
 #RPMDIR	= /usr/src/redhat  
