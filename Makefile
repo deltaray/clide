@@ -80,6 +80,7 @@ uninstall:
 manpages:
 	for doc in $(UTILS) ; do \
 		pod2man $$doc > $$doc.1 ; \
+		touch -r $$doc $$doc.1 ; \
 		gzip $$doc.1 ; chmod 644 $$doc.1.gz \
 		; done
 
