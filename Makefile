@@ -54,15 +54,15 @@ all: manpages
 install:
 	install -m 0755 -o 0 -g 0 -d		$(BINDIR)
 	for util in $(UTILS) ; do \
-	    install -m 0755 -o 0 -g 0 $$util	$(BINDIR) ; done
+	    install -p -m 0755 -o 0 -g 0 $$util	$(BINDIR) ; done
 
 	install -m 0755 -o 0 -g 0 -d		$(DOCDIR)
 	for doc in $(DOCS) ; do \
-	    install -m 0644 -o 0 -g 0 $$doc	$(DOCDIR) ; done
+	    install -p -m 0644 -o 0 -g 0 $$doc	$(DOCDIR) ; done
 
 	install -m 0755 -o 0 -g 0 -d		$(MANDIR)
 	for man in $(UTILS) ; do \
-		install -m 0644 -o 0 -g 0 $$man.1.gz $(MANDIR) ; done
+		install -p -m 0644 -o 0 -g 0 $$man.1.gz $(MANDIR) ; done
 
 uninstall:
 	for util in $(UTILS) ; do \
@@ -80,21 +80,22 @@ uninstall:
 manpages:
 	for doc in $(UTILS) ; do \
 		pod2man $$doc > $$doc.1 ; \
+		touch -r $$doc $$doc.1 ; \
 		gzip $$doc.1 ; chmod 644 $$doc.1.gz \
 		; done
 
 rpminstall:
 	install -m 0755 -d		$(BINDIR)
 	for util in $(UTILS) ; do \
-	    install -m 0755 $$util	$(BINDIR) ; done
+	    install -p -m 0755 $$util	$(BINDIR) ; done
 
 	install -m 0755 -d		$(DOCDIR)
 	for doc in $(DOCS) ; do \
-	    install -m 0644 $$doc	$(DOCDIR) ; done
+	    install -p -m 0644 $$doc	$(DOCDIR) ; done
 
 	install -m 0755 -d		$(MANDIR)
 	for man in $(UTILS) ; do \
-		install -m 0644 $$man.1.gz $(MANDIR) ; done
+		install -p -m 0644 $$man.1.gz $(MANDIR) ; done
 
 clean:
 	rm -f $(PROJECT).spec
